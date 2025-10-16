@@ -11,6 +11,7 @@ import MemoryDisplay from '../messages/MemoryDisplay';
 import ModelSelector from '../controls/ModelSelector';
 import ThreadSidebar from '../sidebar/ThreadSidebar';
 import { useThemeSync } from '../../hooks/useThemeSync';
+import { SettingsModal } from '../../../../components';
 
 interface ChatContainerWithPersistenceProps {
   initialThreadId: string | null;
@@ -28,6 +29,7 @@ export default function ChatContainerWithPersistence({ initialThreadId }: ChatCo
     showTokenCount: false,
   });
   const [tokenStats, setTokenStats] = useState<{ prompt: number; completion: number; total: number }>();
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -391,6 +393,7 @@ export default function ChatContainerWithPersistence({ initialThreadId }: ChatCo
         onSelectThread={handleSelectThread}
         onNewThread={handleNewChat}
         onDeleteThread={handleDeleteThread}
+        onOpenSettings={() => setIsSettingsOpen(true)}
         loading={threadsLoading}
       />
 
@@ -497,6 +500,12 @@ export default function ChatContainerWithPersistence({ initialThreadId }: ChatCo
           </div>
         </div>
       </div>
+
+      {/* Settings Modal */}
+      <SettingsModal
+        isOpen={isSettingsOpen}
+        onClose={() => setIsSettingsOpen(false)}
+      />
     </div>
   );
 }
