@@ -1,6 +1,6 @@
 'use client';
 
-import { DBThread } from '../types/database';
+import { DBThread } from '../../types/database';
 import { useState } from 'react';
 
 interface ThreadSidebarProps {
@@ -87,7 +87,7 @@ export default function ThreadSidebar({
             </div>
           ) : (
             <div className="space-y-2">
-              {threads.map((thread) => (
+              {threads?.map((thread) => (
                 <div
                   key={thread._id}
                   className={`group relative p-3 rounded-lg cursor-pointer transition-colors ${

@@ -9,6 +9,7 @@
   },
   "dependencies": {
     "@tanstack/react-query": "^5.90.3",
+    "axios": "^1.12.2",
     "mongoose": "^8.19.1",
     "next": "15.5.5",
     "react": "19.1.0",

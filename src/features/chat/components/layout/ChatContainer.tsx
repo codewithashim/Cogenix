@@ -1,12 +1,13 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { Message, MemoryContext, ChatSettings } from '../types';
-import MessageBubble from './MessageBubble';
-import ChatInput from './ChatInput';
-import MemoryDisplay from './MemoryDisplay';
-import ModelSelector from './ModelSelector';
-import SettingsPanel from './SettingsPanel';
+import { Message, MemoryContext, ChatSettings } from '../../types';
+import MessageBubble from '../messages/MessageBubble';
+import ChatInput from '../messages/ChatInput';
+import MemoryDisplay from '../messages/MemoryDisplay';
+import ModelSelector from '../controls/ModelSelector';
+import SettingsPanel from '../controls/SettingsPanel';
+import { useThemeSync } from '../../hooks/useThemeSync';
 
 export default function ChatContainer() {
   const [messages, setMessages] = useState<Message[]>([]);
@@ -23,27 +24,13 @@ export default function ChatContainer() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
 
+  // Sync theme from context
+  useThemeSync(settings, setSettings);
+
   // Scroll to bottom when messages change
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
-
-  // Apply theme
-  useEffect(() => {
-    const root = document.documentElement;
-    if (settings.theme === 'dark') {
-      root.classList.add('dark');
-    } else if (settings.theme === 'light') {
-      root.classList.remove('dark');
-    } else {
-      // System theme
-      if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
-        root.classList.add('dark');
-      } else {
-        root.classList.remove('dark');
-      }
-    }
-  }, [settings.theme]);
 
   const handleSendMessage = async (content: string) => {
     if (!content.trim() || isLoading) return;

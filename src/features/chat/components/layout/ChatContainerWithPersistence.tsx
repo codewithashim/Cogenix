@@ -1,16 +1,17 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { Message, MemoryContext, ChatSettings } from '../types';
-import { DBMessage } from '../types/database';
-import { useThreads } from '../hooks/useThreads';
-import { useThread } from '../hooks/useThread';
-import MessageBubble from './MessageBubble';
-import ChatInput from './ChatInput';
-import MemoryDisplay from './MemoryDisplay';
-import ModelSelector from './ModelSelector';
-import SettingsPanel from './SettingsPanel';
-import ThreadSidebar from './ThreadSidebar';
+import { Message, MemoryContext, ChatSettings } from '../../types';
+import { DBMessage } from '../../types/database';
+import { useThreads } from '../../hooks/useThreads';
+import { useThread } from '../../hooks/useThread';
+import MessageBubble from '../messages/MessageBubble';
+import ChatInput from '../messages/ChatInput';
+import MemoryDisplay from '../messages/MemoryDisplay';
+import ModelSelector from '../controls/ModelSelector';
+import SettingsPanel from '../controls/SettingsPanel';
+import ThreadSidebar from '../sidebar/ThreadSidebar';
+import { useThemeSync } from '../../hooks/useThemeSync';
 
 interface ChatContainerWithPersistenceProps {
   initialThreadId: string | null;
@@ -37,6 +38,9 @@ export default function ChatContainerWithPersistence({ initialThreadId }: ChatCo
   const { threads, loading: threadsLoading, createThread, deleteThread } = useThreads();
   const { thread, addMessages: addMessagesToThread } = useThread(currentThreadId);
 
+  // Sync theme from context
+  useThemeSync(settings, setSettings);
+
   // Sync currentThreadId with initialThreadId
   useEffect(() => {
     if (initialThreadId && initialThreadId !== currentThreadId) {
@@ -49,10 +53,11 @@ export default function ChatContainerWithPersistence({ initialThreadId }: ChatCo
     const handlePopState = () => {
       const path = window.location.pathname;
       if (path === '/') {
-        setCurrentThreadId(null);
         setMessages([]);
         setMemoryContexts([]);
         setTokenStats(undefined);
+        previousThreadIdRef.current = null;
+        setCurrentThreadId(null);
       } else if (path.startsWith('/chat/')) {
         const threadId = path.split('/chat/')[1];
         if (threadId && threadId !== currentThreadId) {
@@ -69,6 +74,16 @@ export default function ChatContainerWithPersistence({ initialThreadId }: ChatCo
   useEffect(() => {
     const threadIdChanged = previousThreadIdRef.current !== currentThreadId;
     
+    // If no thread ID, clear messages (New Chat scenario)
+    if (currentThreadId === null) {
+      if (messages.length > 0) {
+        setMessages([]);
+      }
+      previousThreadIdRef.current = currentThreadId;
+      return;
+    }
+    
+    // If we have a thread with messages
     if (thread && thread.messages) {
       // Only load messages from DB if:
       // 1. Thread ID changed AND we're not currently loading (switching threads, not creating)
@@ -87,11 +102,6 @@ export default function ChatContainerWithPersistence({ initialThreadId }: ChatCo
         setMessages(loadedMessages);
       }
       setSelectedModel(thread.model || 'llama2');
-    } else if (!thread && currentThreadId === null) {
-      // Only clear messages if we're intentionally going to a new chat (no thread)
-      if (threadIdChanged && !isLoading) {
-        setMessages([]);
-      }
     }
     
     // Update the previous thread ID
@@ -102,22 +112,6 @@ export default function ChatContainerWithPersistence({ initialThreadId }: ChatCo
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
-
-  // Apply theme
-  useEffect(() => {
-    const root = document.documentElement;
-    if (settings.theme === 'dark') {
-      root.classList.add('dark');
-    } else if (settings.theme === 'light') {
-      root.classList.remove('dark');
-    } else {
-      if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
-        root.classList.add('dark');
-      } else {
-        root.classList.remove('dark');
-      }
-    }
-  }, [settings.theme]);
 
   const handleSendMessage = async (content: string) => {
     if (!content.trim() || isLoading) return;
@@ -309,9 +303,12 @@ export default function ChatContainerWithPersistence({ initialThreadId }: ChatCo
   };
 
   const handleNewChat = async () => {
+    // Clear everything first
     setMessages([]);
     setMemoryContexts([]);
     setTokenStats(undefined);
+    // Update the ref to track that we're intentionally clearing
+    previousThreadIdRef.current = null;
     setCurrentThreadId(null);
     // Update URL without reload
     window.history.pushState(null, '', '/');
@@ -331,6 +328,7 @@ export default function ChatContainerWithPersistence({ initialThreadId }: ChatCo
       setMessages([]);
       setMemoryContexts([]);
       setTokenStats(undefined);
+      previousThreadIdRef.current = null;
       setCurrentThreadId(null);
       // Update URL without reload
       window.history.pushState(null, '', '/');

@@ -1,4 +1,26 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Cognix - AI Chat Interface with Memory
+
+A modern, feature-rich AI chat application built with Next.js, featuring persistent conversations, memory context, and a customizable theme system.
+
+## Features
+
+- 💬 **Real-time Chat**: Stream AI responses in real-time
+- 🧠 **Memory Context**: AI remembers conversation context
+- 🗂️ **Thread Management**: Organize conversations in threads
+- 🎨 **Theme System**: Light, Dark, and System theme support
+- 📊 **Token Statistics**: Track usage with detailed token counts
+- 🔄 **Persistence**: Conversations saved to MongoDB
+
+## Theme System
+
+Cognix features a comprehensive theme system with three modes:
+- **Light Mode**: Bright, clean interface
+- **Dark Mode**: Dark, eye-friendly interface  
+- **System Mode**: Automatically follows your OS theme preference
+
+Access theme settings by clicking the settings icon (⚙️) in the chat interface.
+
+See [THEME_SYSTEM.md](./THEME_SYSTEM.md) for detailed technical documentation.
 
 ## Getting Started
 
