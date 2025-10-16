@@ -13,7 +13,6 @@ import { publicEnv } from '@/config/env';
  */
 const axiosInstance: AxiosInstance = axios.create({
   baseURL: publicEnv.appUrl,
-  timeout: 30000, // 30 seconds
   headers: {
     'Content-Type': 'application/json',
   },

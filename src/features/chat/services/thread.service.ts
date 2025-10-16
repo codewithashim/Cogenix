@@ -51,10 +51,11 @@ export interface GetMessagesResponse {
  */
 export async function getAllThreads(): Promise<ThreadResponse[]> {
   try {
-    return await apiRequest<ThreadResponse[]>({
+    const response = await apiRequest<{ success: boolean; threads: ThreadResponse[] }>({
       method: 'GET',
       url: API_ENDPOINTS.THREADS.BASE,
     });
+    return response.threads;
   } catch (error) {
     throw handleApiError(error);
   }
@@ -65,10 +66,11 @@ export async function getAllThreads(): Promise<ThreadResponse[]> {
  */
 export async function getThreadById(id: string): Promise<ThreadResponse> {
   try {
-    return await apiRequest<ThreadResponse>({
+    const response = await apiRequest<{ success: boolean; thread: ThreadResponse }>({
       method: 'GET',
       url: API_ENDPOINTS.THREADS.BY_ID(id),
     });
+    return response.thread;
   } catch (error) {
     throw handleApiError(error);
   }
@@ -79,11 +81,12 @@ export async function getThreadById(id: string): Promise<ThreadResponse> {
  */
 export async function createThread(data: CreateThreadRequest): Promise<ThreadResponse> {
   try {
-    return await apiRequest<ThreadResponse>({
+    const response = await apiRequest<{ success: boolean; thread: ThreadResponse }>({
       method: 'POST',
       url: API_ENDPOINTS.THREADS.BASE,
       data,
     });
+    return response.thread;
   } catch (error) {
     throw handleApiError(error);
   }
@@ -97,11 +100,12 @@ export async function updateThread(
   data: UpdateThreadRequest
 ): Promise<ThreadResponse> {
   try {
-    return await apiRequest<ThreadResponse>({
-      method: 'PUT',
+    const response = await apiRequest<{ success: boolean; thread: ThreadResponse }>({
+      method: 'PATCH',
       url: API_ENDPOINTS.THREADS.BY_ID(id),
       data,
     });
+    return response.thread;
   } catch (error) {
     throw handleApiError(error);
   }
