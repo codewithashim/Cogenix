@@ -58,7 +58,7 @@ export async function POST(request: NextRequest) {
 
     const thread = await Thread.create({
       title: threadTitle,
-      aiModel: model || 'llama3',
+      aiModel: model || 'llama2:latest',
       messages: messages || [],
     });
 

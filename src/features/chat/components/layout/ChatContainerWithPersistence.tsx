@@ -20,7 +20,7 @@ interface ChatContainerWithPersistenceProps {
 export default function ChatContainerWithPersistence({ initialThreadId }: ChatContainerWithPersistenceProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [selectedModel, setSelectedModel] = useState('llama2');
+  const [selectedModel, setSelectedModel] = useState('llama2:latest');
   const [memoryContexts, setMemoryContexts] = useState<MemoryContext[]>([]);
   const [currentThreadId, setCurrentThreadId] = useState<string | null>(initialThreadId);
   const [settings, setSettings] = useState<ChatSettings>({
@@ -106,7 +106,7 @@ export default function ChatContainerWithPersistence({ initialThreadId }: ChatCo
         setMessages(loadedMessages);
         console.log(`Loaded ${loadedMessages.length} messages from thread ${currentThreadId}`);
       }
-      setSelectedModel(thread.model || 'llama2');
+      setSelectedModel(thread.model || 'llama2:latest');
     }
     
     // Update the previous thread ID

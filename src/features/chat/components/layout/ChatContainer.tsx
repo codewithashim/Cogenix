@@ -11,7 +11,7 @@ import { useThemeSync } from '../../hooks/useThemeSync';
 export default function ChatContainer() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [selectedModel, setSelectedModel] = useState('llama3');
+  const [selectedModel, setSelectedModel] = useState('llama2:latest');
   const [memoryContexts, setMemoryContexts] = useState<MemoryContext[]>([]);
   const [settings, setSettings] = useState<ChatSettings>({
     theme: 'system',

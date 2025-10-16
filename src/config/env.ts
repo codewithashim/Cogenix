@@ -11,7 +11,7 @@ export const env = {
   ollamaUrl: process.env.OLLAMA_URL || 'http://localhost:11434',
   
   // Model Configuration
-  defaultModel: process.env.DEFAULT_MODEL || 'llama2',
+  defaultModel: process.env.DEFAULT_MODEL || 'llama2:latest',
   
   // Node Environment
   nodeEnv: process.env.NODE_ENV || 'development',

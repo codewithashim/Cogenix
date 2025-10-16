@@ -18,8 +18,16 @@ export function useThreads() {
 
   // Create thread mutation - now using thread service function
   const createThreadMutation = useMutation({
-    mutationFn: ({ title, model }: { title?: string; model?: string }) => 
-      createThreadService({ title, firstMessage: model }) as unknown as Promise<DBThread>,
+    mutationFn: async ({ title, model }: { title?: string; model?: string }) => {
+      const response = await fetch('/api/threads', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title, model }),
+      });
+      if (!response.ok) throw new Error('Failed to create thread');
+      const data = await response.json();
+      return data.thread as DBThread;
+    },
     onSuccess: (newThread) => {
       // Add new thread to cache
       queryClient.setQueryData<DBThread[]>(['threads'], (old = []) => [newThread, ...old]);

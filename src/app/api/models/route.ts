@@ -29,9 +29,8 @@ export async function GET() {
     // Return mock data in case of error (for development)
     return NextResponse.json({ 
       models: [
-        { name: 'llama3', size: '4.7GB' },
-        { name: 'mistral', size: '4.1GB' },
-        { name: 'codellama', size: '3.8GB' }
+        { name: 'llama2:latest', size: '3.8GB' },
+        { name: 'deepseek-r1:8b', size: '5.2GB' }
       ],
       success: false,
       error: error instanceof Error ? error.message : 'Failed to fetch models'
