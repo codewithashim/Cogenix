@@ -11,6 +11,7 @@ import MemoryDisplay from '../messages/MemoryDisplay';
 import ModelSelector from '../controls/ModelSelector';
 import SettingsPanel from '../controls/SettingsPanel';
 import ThreadSidebar from '../sidebar/ThreadSidebar';
+import { useThemeSync } from '../../hooks/useThemeSync';
 
 interface ChatContainerWithPersistenceProps {
   initialThreadId: string | null;
@@ -36,6 +37,9 @@ export default function ChatContainerWithPersistence({ initialThreadId }: ChatCo
   // Thread management hooks
   const { threads, loading: threadsLoading, createThread, deleteThread } = useThreads();
   const { thread, addMessages: addMessagesToThread } = useThread(currentThreadId);
+
+  // Sync theme from context
+  useThemeSync(settings, setSettings);
 
   // Sync currentThreadId with initialThreadId
   useEffect(() => {
@@ -108,22 +112,6 @@ export default function ChatContainerWithPersistence({ initialThreadId }: ChatCo
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
-
-  // Apply theme
-  useEffect(() => {
-    const root = document.documentElement;
-    if (settings.theme === 'dark') {
-      root.classList.add('dark');
-    } else if (settings.theme === 'light') {
-      root.classList.remove('dark');
-    } else {
-      if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
-        root.classList.add('dark');
-      } else {
-        root.classList.remove('dark');
-      }
-    }
-  }, [settings.theme]);
 
   const handleSendMessage = async (content: string) => {
     if (!content.trim() || isLoading) return;
