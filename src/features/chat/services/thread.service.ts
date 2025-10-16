@@ -147,11 +147,31 @@ export async function addMessageToThread(
   message: Partial<Message>
 ): Promise<ThreadResponse> {
   try {
-    return await apiRequest<ThreadResponse>({
+    const response = await apiRequest<{ success: boolean; thread: ThreadResponse }>({
       method: 'POST',
       url: API_ENDPOINTS.THREADS.MESSAGES(id),
-      data: message,
+      data: { messages: [message] }, // Wrap in array as API expects
     });
+    return response.thread;
+  } catch (error) {
+    throw handleApiError(error);
+  }
+}
+
+/**
+ * Add multiple messages to a thread
+ */
+export async function addMessagesToThread(
+  id: string,
+  messages: Partial<Message>[]
+): Promise<ThreadResponse> {
+  try {
+    const response = await apiRequest<{ success: boolean; thread: ThreadResponse }>({
+      method: 'POST',
+      url: API_ENDPOINTS.THREADS.MESSAGES(id),
+      data: { messages },
+    });
+    return response.thread;
   } catch (error) {
     throw handleApiError(error);
   }

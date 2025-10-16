@@ -8,4 +8,4 @@ export { ThreadSidebar } from './sidebar';
 export { MessageBubble, ChatInput, MemoryDisplay } from './messages';
 
 // Control components
-export { ModelSelector, SettingsPanel } from './controls';
+export { ModelSelector } from './controls';

@@ -9,9 +9,9 @@ import MessageBubble from '../messages/MessageBubble';
 import ChatInput from '../messages/ChatInput';
 import MemoryDisplay from '../messages/MemoryDisplay';
 import ModelSelector from '../controls/ModelSelector';
-import SettingsPanel from '../controls/SettingsPanel';
 import ThreadSidebar from '../sidebar/ThreadSidebar';
 import { useThemeSync } from '../../hooks/useThemeSync';
+import { SettingsModal } from '../../../../components';
 
 interface ChatContainerWithPersistenceProps {
   initialThreadId: string | null;
@@ -29,6 +29,7 @@ export default function ChatContainerWithPersistence({ initialThreadId }: ChatCo
     showTokenCount: false,
   });
   const [tokenStats, setTokenStats] = useState<{ prompt: number; completion: number; total: number }>();
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -85,12 +86,15 @@ export default function ChatContainerWithPersistence({ initialThreadId }: ChatCo
     
     // If we have a thread with messages
     if (thread && thread.messages) {
-      // Only load messages from DB if:
-      // 1. Thread ID changed AND we're not currently loading (switching threads, not creating)
-      // 2. OR DB has more messages than local state (messages were saved and need refresh)
+      // Load messages from DB if:
+      // 1. Thread ID changed (switching threads)
+      // 2. OR DB has different number of messages (messages were saved/updated)
+      // 3. BUT skip if currently loading a new response
       const shouldLoadMessages = 
-        (threadIdChanged && !isLoading) || 
-        (!isLoading && thread.messages.length > messages.length);
+        !isLoading && (
+          threadIdChanged || 
+          thread.messages.length !== messages.length
+        );
       
       if (shouldLoadMessages) {
         const loadedMessages: Message[] = thread.messages.map((msg: DBMessage, index: number) => ({
@@ -100,6 +104,7 @@ export default function ChatContainerWithPersistence({ initialThreadId }: ChatCo
           timestamp: new Date(msg.timestamp),
         }));
         setMessages(loadedMessages);
+        console.log(`Loaded ${loadedMessages.length} messages from thread ${currentThreadId}`);
       }
       setSelectedModel(thread.model || 'llama2');
     }
@@ -156,6 +161,8 @@ export default function ChatContainerWithPersistence({ initialThreadId }: ChatCo
 
     setMessages((prev) => [...prev, assistantMessage]);
 
+    let assistantContent = '';
+
     try {
       abortControllerRef.current = new AbortController();
 
@@ -178,8 +185,6 @@ export default function ChatContainerWithPersistence({ initialThreadId }: ChatCo
       if (!response.ok) {
         throw new Error('Failed to get response');
       }
-
-      let assistantContent = '';
 
       if (settings.streaming && response.body) {
         const reader = response.body.getReader();
@@ -248,27 +253,17 @@ export default function ChatContainerWithPersistence({ initialThreadId }: ChatCo
         )
       );
 
-      // Save messages to database
-      if (threadId && assistantContent) {
-        const dbMessages: DBMessage[] = [
-          {
-            role: 'user',
-            content: content,
-            timestamp: userMessage.timestamp,
-          },
-          {
-            role: 'assistant',
-            content: assistantContent,
-            timestamp: new Date(),
-          },
-        ];
-
-        await addMessagesToThread(threadId, dbMessages);
-      }
-
     } catch (error) {
       if (error instanceof Error && error.name === 'AbortError') {
-        console.log('Request was aborted');
+        console.log('Request was aborted by user');
+        // Keep whatever content was generated before stopping
+        setMessages((prev) =>
+          prev.map((m) =>
+            m.id === assistantMessageId
+              ? { ...m, isStreaming: false }
+              : m
+          )
+        );
       } else {
         console.error('Error sending message:', error);
         setMessages((prev) =>
@@ -286,6 +281,32 @@ export default function ChatContainerWithPersistence({ initialThreadId }: ChatCo
     } finally {
       setIsLoading(false);
       abortControllerRef.current = null;
+      
+      // Save messages to database after everything completes (including abort)
+      if (threadId && assistantContent) {
+        try {
+          const dbMessages: DBMessage[] = [
+            {
+              role: 'user',
+              content: content,
+              timestamp: userMessage.timestamp,
+            },
+            {
+              role: 'assistant',
+              content: assistantContent,
+              timestamp: new Date(),
+            },
+          ];
+
+          // Use the hook's addMessages function to update thread state
+          const result = await addMessagesToThread(threadId, dbMessages);
+          if (result) {
+            console.log('Messages saved successfully to thread:', threadId);
+          }
+        } catch (saveError) {
+          console.error('Error saving messages to thread:', saveError);
+        }
+      }
     }
   };
 
@@ -335,6 +356,23 @@ export default function ChatContainerWithPersistence({ initialThreadId }: ChatCo
     }
   };
 
+  const handleStopGeneration = () => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+      setIsLoading(false);
+      
+      // Mark the last assistant message as no longer streaming
+      setMessages((prev) =>
+        prev.map((m, idx) =>
+          idx === prev.length - 1 && m.role === 'assistant'
+            ? { ...m, isStreaming: false }
+            : m
+        )
+      );
+    }
+  };
+
   const handleClearMemory = async () => {
     try {
       await fetch('/api/memory/clear', {
@@ -347,7 +385,7 @@ export default function ChatContainerWithPersistence({ initialThreadId }: ChatCo
   };
 
   return (
-    <div className="flex h-screen bg-gray-50 dark:bg-gray-900">
+    <div className="flex h-screen bg-white dark:bg-[#212121] overflow-hidden">
       {/* Sidebar */}
       <ThreadSidebar
         threads={threads}
@@ -355,47 +393,45 @@ export default function ChatContainerWithPersistence({ initialThreadId }: ChatCo
         onSelectThread={handleSelectThread}
         onNewThread={handleNewChat}
         onDeleteThread={handleDeleteThread}
+        onOpenSettings={() => setIsSettingsOpen(true)}
         loading={threadsLoading}
       />
 
       {/* Main Chat Area */}
-      <div className="flex flex-col flex-1 min-w-0">
-        {/* Header */}
-        <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-                {thread?.title || 'Cognix Chat'}
-              </h1>
+      <div className="flex flex-col flex-1 min-w-0 relative">
+        {/* Header - Show on all devices */}
+        <div className="flex bg-white dark:bg-[#212121] border-b border-gray-100 dark:border-gray-800 px-4 lg:px-6 py-3 items-center justify-between sticky top-0 z-10 backdrop-blur-sm bg-white/80 dark:bg-[#212121]/80">
+          <div className="flex items-center gap-3 flex-1 min-w-0">
+            <h1 className="text-lg font-semibold text-gray-800 dark:text-gray-100 truncate">
+              {thread?.title || 'Cognix'}
+            </h1>
+            <div className="hidden md:block">
               <ModelSelector
                 selectedModel={selectedModel}
                 onModelChange={setSelectedModel}
               />
             </div>
-            
-            <div className="flex items-center gap-2">
-              {messages.length > 0 && (
-                <button
-                  onClick={handleRegenerateLastMessage}
-                  disabled={isLoading}
-                  className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  🔄 Regenerate
-                </button>
-              )}
-              
-              <SettingsPanel
-                settings={settings}
-                onSettingsChange={setSettings}
-                tokenStats={tokenStats}
-              />
-            </div>
+          </div>
+          
+          <div className="flex items-center gap-2">
+            {messages.length > 0 && (
+              <button
+                onClick={handleRegenerateLastMessage}
+                disabled={isLoading}
+                className="inline-flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+                <span className="hidden lg:inline">Regenerate</span>
+              </button>
+            )}
           </div>
         </div>
 
         {/* Messages Container */}
-        <div className="flex-1 overflow-y-auto px-6 py-4">
-          <div className="max-w-4xl mx-auto">
+        <div className="flex-1 overflow-y-auto">
+          <div className="max-w-3xl mx-auto px-4 py-6 lg:py-8">
             {memoryContexts.length > 0 && (
               <MemoryDisplay
                 contexts={memoryContexts}
@@ -404,17 +440,45 @@ export default function ChatContainerWithPersistence({ initialThreadId }: ChatCo
             )}
             
             {messages.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-full text-center">
-                <div className="text-6xl mb-4">🤖</div>
-                <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mb-2">
-                  Welcome to Cognix
+              <div className="flex flex-col items-center justify-center min-h-[calc(100vh-12rem)] text-center px-4">
+                <div className="mb-8 relative">
+                  <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center shadow-lg">
+                    <svg className="w-8 h-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                    </svg>
+                  </div>
+                </div>
+                <h2 className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white mb-4">
+                  What are you working on?
                 </h2>
-                <p className="text-gray-600 dark:text-gray-400 max-w-md">
-                  Start a conversation with your AI assistant. Your chat history will be saved automatically.
+                <p className="text-base md:text-lg text-gray-600 dark:text-gray-400 max-w-2xl mb-8">
+                  Start a conversation with your AI assistant. Ask questions, brainstorm ideas, or get help with your work.
                 </p>
+                
+                {/* Suggestion Cards */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full max-w-2xl">
+                  {[
+                    { icon: '💡', title: 'Brainstorm ideas', desc: 'Generate creative solutions' },
+                    { icon: '📝', title: 'Write content', desc: 'Draft articles and messages' },
+                    { icon: '🔍', title: 'Research topics', desc: 'Get detailed information' },
+                    { icon: '🚀', title: 'Plan projects', desc: 'Organize tasks and goals' }
+                  ].map((item, idx) => (
+                    <button
+                      key={idx}
+                      onClick={() => handleSendMessage(item.title)}
+                      className="group text-left p-4 rounded-xl border border-gray-200 dark:border-gray-700 hover:border-blue-500 dark:hover:border-blue-500 hover:shadow-md transition-all duration-200 bg-white dark:bg-[#2A2A2A]"
+                    >
+                      <div className="text-2xl mb-2">{item.icon}</div>
+                      <div className="font-semibold text-gray-900 dark:text-white mb-1 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+                        {item.title}
+                      </div>
+                      <div className="text-sm text-gray-600 dark:text-gray-400">{item.desc}</div>
+                    </button>
+                  ))}
+                </div>
               </div>
             ) : (
-              <div className="space-y-4">
+              <div className="space-y-6 py-4">
                 {messages.map((message) => (
                   <MessageBubble key={message.id} message={message} />
                 ))}
@@ -425,12 +489,23 @@ export default function ChatContainerWithPersistence({ initialThreadId }: ChatCo
         </div>
 
         {/* Input Area */}
-        <ChatInput
-          onSendMessage={handleSendMessage}
-          disabled={isLoading}
-          placeholder={isLoading ? 'Waiting for response...' : 'Type your message...'}
-        />
+        <div className="border-t border-gray-100 dark:border-gray-800 bg-white dark:bg-[#212121] sticky bottom-0">
+          <div className="max-w-3xl mx-auto px-4 py-4">
+            <ChatInput
+              onSendMessage={handleSendMessage}
+              onStop={handleStopGeneration}
+              disabled={isLoading}
+              placeholder={isLoading ? 'Cognix is thinking...' : 'Message Cognix...'}
+            />
+          </div>
+        </div>
       </div>
+
+      {/* Settings Modal */}
+      <SettingsModal
+        isOpen={isSettingsOpen}
+        onClose={() => setIsSettingsOpen(false)}
+      />
     </div>
   );
 }

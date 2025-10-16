@@ -10,10 +10,11 @@ import Thread from '@/features/chat/models/Thread';
 // POST - Add message(s) to thread
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     await connectDB();
+    const { id } = await params;
 
     const body = await request.json();
     const { messages } = body;
@@ -32,7 +33,7 @@ export async function POST(
     }));
 
     const thread = await Thread.findByIdAndUpdate(
-      params.id,
+      id,
       {
         $push: { messages: { $each: messagesWithTimestamp } },
       },

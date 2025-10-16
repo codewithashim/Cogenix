@@ -12,12 +12,13 @@ import Thread from '@/features/chat/models/Thread';
 // GET - Get thread by ID
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     await connectDB();
+    const { id } = await params;
 
-    const thread = await Thread.findById(params.id).lean();
+    const thread = await Thread.findById(id).lean();
 
     if (!thread) {
       return NextResponse.json(
@@ -51,10 +52,11 @@ export async function GET(
 // PATCH - Update thread
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     await connectDB();
+    const { id } = await params;
 
     const body = await request.json();
     const { title, messages, model } = body;
@@ -65,7 +67,7 @@ export async function PATCH(
     if (model !== undefined) updateData.aiModel = model;
 
     const thread = await Thread.findByIdAndUpdate(
-      params.id,
+      id,
       updateData,
       { new: true, runValidators: true }
     ).lean();
@@ -102,12 +104,13 @@ export async function PATCH(
 // DELETE - Delete thread
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     await connectDB();
+    const { id } = await params;
 
-    const thread = await Thread.findByIdAndDelete(params.id);
+    const thread = await Thread.findByIdAndDelete(id);
 
     if (!thread) {
       return NextResponse.json(

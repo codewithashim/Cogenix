@@ -6,7 +6,6 @@ import MessageBubble from '../messages/MessageBubble';
 import ChatInput from '../messages/ChatInput';
 import MemoryDisplay from '../messages/MemoryDisplay';
 import ModelSelector from '../controls/ModelSelector';
-import SettingsPanel from '../controls/SettingsPanel';
 import { useThemeSync } from '../../hooks/useThemeSync';
 
 export default function ChatContainer() {
@@ -148,7 +147,15 @@ export default function ChatContainer() {
       );
     } catch (error) {
       if (error instanceof Error && error.name === 'AbortError') {
-        console.log('Request was aborted');
+        console.log('Request was aborted by user');
+        // Keep whatever content was generated before stopping
+        setMessages((prev) =>
+          prev.map((m) =>
+            m.id === assistantMessageId
+              ? { ...m, isStreaming: false }
+              : m
+          )
+        );
       } else {
         console.error('Error sending message:', error);
         setMessages((prev) =>
@@ -189,6 +196,23 @@ export default function ChatContainer() {
     setMessages([]);
     setMemoryContexts([]);
     setTokenStats(undefined);
+  };
+
+  const handleStopGeneration = () => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+      setIsLoading(false);
+      
+      // Mark the last assistant message as no longer streaming
+      setMessages((prev) =>
+        prev.map((m, idx) =>
+          idx === prev.length - 1 && m.role === 'assistant'
+            ? { ...m, isStreaming: false }
+            : m
+        )
+      );
+    }
   };
 
   const handleClearMemory = async () => {
@@ -234,12 +258,6 @@ export default function ChatContainer() {
                 🔄 Regenerate
               </button>
             )}
-            
-            <SettingsPanel
-              settings={settings}
-              onSettingsChange={setSettings}
-              tokenStats={tokenStats}
-            />
           </div>
         </div>
       </div>
@@ -279,6 +297,7 @@ export default function ChatContainer() {
       {/* Input Area */}
       <ChatInput
         onSendMessage={handleSendMessage}
+        onStop={handleStopGeneration}
         disabled={isLoading}
         placeholder={isLoading ? 'Waiting for response...' : 'Type your message...'}
       />
