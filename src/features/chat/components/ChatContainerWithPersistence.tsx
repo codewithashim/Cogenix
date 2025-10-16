@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
 import { Message, MemoryContext, ChatSettings } from '../types';
 import { DBMessage } from '../types/database';
 import { useThreads } from '../hooks/useThreads';
@@ -18,7 +17,6 @@ interface ChatContainerWithPersistenceProps {
 }
 
 export default function ChatContainerWithPersistence({ initialThreadId }: ChatContainerWithPersistenceProps) {
-  const router = useRouter();
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [selectedModel, setSelectedModel] = useState('llama2');
@@ -33,6 +31,7 @@ export default function ChatContainerWithPersistence({ initialThreadId }: ChatCo
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
+  const previousThreadIdRef = useRef<string | null>(currentThreadId);
 
   // Thread management hooks
   const { threads, loading: threadsLoading, createThread, deleteThread } = useThreads();
@@ -45,19 +44,59 @@ export default function ChatContainerWithPersistence({ initialThreadId }: ChatCo
     }
   }, [initialThreadId, currentThreadId]);
 
+  // Handle browser back/forward navigation
+  useEffect(() => {
+    const handlePopState = () => {
+      const path = window.location.pathname;
+      if (path === '/') {
+        setCurrentThreadId(null);
+        setMessages([]);
+        setMemoryContexts([]);
+        setTokenStats(undefined);
+      } else if (path.startsWith('/chat/')) {
+        const threadId = path.split('/chat/')[1];
+        if (threadId && threadId !== currentThreadId) {
+          setCurrentThreadId(threadId);
+        }
+      }
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, [currentThreadId]);
+
   // Load thread messages when thread changes
   useEffect(() => {
+    const threadIdChanged = previousThreadIdRef.current !== currentThreadId;
+    
     if (thread && thread.messages) {
-      const loadedMessages: Message[] = thread.messages.map((msg: DBMessage, index: number) => ({
-        id: `${thread._id}-${index}`,
-        role: msg.role,
-        content: msg.content,
-        timestamp: new Date(msg.timestamp),
-      }));
-      setMessages(loadedMessages);
+      // Only load messages from DB if:
+      // 1. Thread ID changed AND we're not currently loading (switching threads, not creating)
+      // 2. OR DB has more messages than local state (messages were saved and need refresh)
+      const shouldLoadMessages = 
+        (threadIdChanged && !isLoading) || 
+        (!isLoading && thread.messages.length > messages.length);
+      
+      if (shouldLoadMessages) {
+        const loadedMessages: Message[] = thread.messages.map((msg: DBMessage, index: number) => ({
+          id: `${thread._id}-${index}`,
+          role: msg.role,
+          content: msg.content,
+          timestamp: new Date(msg.timestamp),
+        }));
+        setMessages(loadedMessages);
+      }
       setSelectedModel(thread.model || 'llama2');
+    } else if (!thread && currentThreadId === null) {
+      // Only clear messages if we're intentionally going to a new chat (no thread)
+      if (threadIdChanged && !isLoading) {
+        setMessages([]);
+      }
     }
-  }, [thread]);
+    
+    // Update the previous thread ID
+    previousThreadIdRef.current = currentThreadId;
+  }, [thread, currentThreadId, isLoading, messages.length]);
 
   // Scroll to bottom when messages change
   useEffect(() => {
@@ -83,19 +122,11 @@ export default function ChatContainerWithPersistence({ initialThreadId }: ChatCo
   const handleSendMessage = async (content: string) => {
     if (!content.trim() || isLoading) return;
 
-    const userMessage: Message = {
-      id: Date.now().toString(),
-      role: 'user',
-      content,
-      timestamp: new Date(),
-    };
-
-    setMessages((prev) => [...prev, userMessage]);
+    // Set loading state FIRST to prevent useEffect from overwriting messages
     setIsLoading(true);
 
     // Create thread if doesn't exist
     let threadId = currentThreadId;
-    let isNewThread = false;
     if (!threadId) {
       const newThread = await createThread(content.substring(0, 50), selectedModel);
       if (!newThread) {
@@ -105,11 +136,19 @@ export default function ChatContainerWithPersistence({ initialThreadId }: ChatCo
       }
       threadId = newThread._id!;
       setCurrentThreadId(threadId);
-      isNewThread = true;
       
       // Update URL without navigation/reload using window.history
-      window.history.replaceState(null, '', `/chat/${threadId}`);
+      window.history.pushState(null, '', `/chat/${threadId}`);
     }
+
+    const userMessage: Message = {
+      id: Date.now().toString(),
+      role: 'user',
+      content,
+      timestamp: new Date(),
+    };
+
+    setMessages((prev) => [...prev, userMessage]);
 
     // Create assistant message placeholder
     const assistantMessageId = (Date.now() + 1).toString();
@@ -274,14 +313,15 @@ export default function ChatContainerWithPersistence({ initialThreadId }: ChatCo
     setMemoryContexts([]);
     setTokenStats(undefined);
     setCurrentThreadId(null);
-    // Navigate to home page
-    router.push('/');
+    // Update URL without reload
+    window.history.pushState(null, '', '/');
   };
 
   const handleSelectThread = (threadId: string) => {
+    if (threadId === currentThreadId) return; // Already on this thread
     setCurrentThreadId(threadId);
-    // Navigate to thread URL
-    router.push(`/chat/${threadId}`);
+    // Update URL without reload
+    window.history.pushState(null, '', `/chat/${threadId}`);
   };
 
   const handleDeleteThread = async (threadId: string) => {
@@ -292,7 +332,8 @@ export default function ChatContainerWithPersistence({ initialThreadId }: ChatCo
       setMemoryContexts([]);
       setTokenStats(undefined);
       setCurrentThreadId(null);
-      router.push('/');
+      // Update URL without reload
+      window.history.pushState(null, '', '/');
     }
   };
 
