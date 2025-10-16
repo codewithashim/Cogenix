@@ -1,12 +1,13 @@
 import { ChatContainerWithPersistence } from "@/features/chat/components";
 
 interface ChatPageProps {
-  params: {
+  params: Promise<{
     threadId: string;
-  };
+  }>;
 }
 
-export default function ChatPage({ params }: ChatPageProps) {
-  return <ChatContainerWithPersistence initialThreadId={params.threadId} />;
+export default async function ChatPage({ params }: ChatPageProps) {
+  const { threadId } = await params;
+  return <ChatContainerWithPersistence initialThreadId={threadId} />;
 }
 

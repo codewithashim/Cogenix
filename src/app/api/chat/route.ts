@@ -16,20 +16,46 @@ export async function POST(request: NextRequest) {
     const backendUrl = env.ollamaUrl;
     
     // Call your backend API (Ollama or custom backend)
-    const response = await fetch(`${backendUrl}/api/chat`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: model || env.defaultModel,
-        messages,
-        stream,
-      }),
-    });
+    let response;
+    try {
+      response = await fetch(`${backendUrl}/api/chat`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: model || env.defaultModel,
+          messages,
+          stream,
+        }),
+      });
+    } catch (fetchError) {
+      console.error('Failed to connect to backend:', fetchError);
+      return new Response(
+        JSON.stringify({ 
+          error: `Cannot connect to Ollama at ${backendUrl}. Please make sure Ollama is running.`,
+          content: 'Cannot connect to the AI backend. Please ensure Ollama is running on your system.' 
+        }),
+        { 
+          status: 503, 
+          headers: { 'Content-Type': 'application/json' } 
+        }
+      );
+    }
 
     if (!response.ok) {
-      throw new Error('Failed to get response from backend');
+      const errorText = await response.text();
+      console.error('Backend error response:', errorText);
+      return new Response(
+        JSON.stringify({ 
+          error: `Backend returned ${response.status}: ${errorText}`,
+          content: `The AI backend returned an error. Status: ${response.status}. This might mean the model is not available or there's a configuration issue.` 
+        }),
+        { 
+          status: response.status, 
+          headers: { 'Content-Type': 'application/json' } 
+        }
+      );
     }
 
     // If streaming is enabled, return a streaming response

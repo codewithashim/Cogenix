@@ -22,6 +22,7 @@ export {
   deleteThread,
   getThreadMessages,
   addMessageToThread,
+  addMessagesToThread,
   type CreateThreadRequest,
   type UpdateThreadRequest,
   type ThreadResponse,

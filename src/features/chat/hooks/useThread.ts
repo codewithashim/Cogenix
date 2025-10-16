@@ -5,7 +5,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { DBThread, DBMessage } from '../types/database';
-import { getThreadById, addMessageToThread, updateThread as updateThreadService } from '../services';
+import { getThreadById, addMessageToThread, addMessagesToThread, updateThread as updateThreadService } from '../services';
 
 export function useThread(threadId: string | null) {
   const [thread, setThread] = useState<DBThread | null>(null);
@@ -30,17 +30,15 @@ export function useThread(threadId: string | null) {
   // Add messages to thread - now using thread service function
   const addMessages = useCallback(async (id: string, messages: DBMessage[]) => {
     try {
-      // Add each message individually
-      for (const message of messages) {
-        const data = await addMessageToThread(id, message);
-        setThread(data as unknown as DBThread);
-      }
-      return thread;
+      // Add all messages at once
+      const data = await addMessagesToThread(id, messages);
+      setThread(data as unknown as DBThread);
+      return data as unknown as DBThread;
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to add messages');
       return null;
     }
-  }, [thread]);
+  }, []);
 
   // Update thread metadata - now using thread service function
   const updateThread = useCallback(async (id: string, updates: Partial<DBThread>) => {

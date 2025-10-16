@@ -44,19 +44,16 @@ export default function ModelSelector({ selectedModel, onModelChange }: ModelSel
 
   return (
     <div className="flex items-center gap-2">
-      <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
-        Model:
-      </label>
       <div className="relative">
         <select
           value={selectedModel}
           onChange={(e) => onModelChange(e.target.value)}
           disabled={loading || models.length === 0}
-          className="appearance-none bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2 pr-10 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+          className="appearance-none bg-gray-50 dark:bg-[#2A2A2A] border border-gray-200 dark:border-gray-700 rounded-lg pl-3 pr-8 py-1.5 text-xs font-medium text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
         >
-          {loading && <option>Loading models...</option>}
-          {error && <option>Error loading models</option>}
-          {!loading && !error && models.length === 0 && <option>No models available</option>}
+          {loading && <option>Loading...</option>}
+          {error && <option>Error</option>}
+          {!loading && !error && models.length === 0 && <option>No models</option>}
           {models.map((model) => (
             <option key={model.name} value={model.name}>
               {model.name}
@@ -64,26 +61,18 @@ export default function ModelSelector({ selectedModel, onModelChange }: ModelSel
           ))}
         </select>
         {loading && (
-          <div className="absolute right-3 top-1/2 -translate-y-1/2">
-            <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
+          <div className="absolute right-2 top-1/2 -translate-y-1/2">
+            <div className="w-3 h-3 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
           </div>
         )}
         {!loading && (
-          <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
-            <svg className="w-4 h-4 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <div className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none">
+            <svg className="w-3 h-3 text-gray-500 dark:text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
             </svg>
           </div>
         )}
       </div>
-      <button
-        onClick={fetchModels}
-        disabled={loading}
-        className="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-200 disabled:opacity-50"
-        title="Refresh models"
-      >
-        🔄
-      </button>
     </div>
   );
 }
