@@ -1,4 +1,4 @@
-import ChatContainerWithPersistence from "@/features/chat/components/ChatContainerWithPersistence";
+import { ChatContainerWithPersistence } from "@/features/chat/components";
 
 interface ChatPageProps {
   params: {

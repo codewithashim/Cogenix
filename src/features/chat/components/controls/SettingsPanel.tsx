@@ -1,6 +1,6 @@
 'use client';
 
-import { ChatSettings } from '../types';
+import { ChatSettings } from '../../types';
 import { useState } from 'react';
 
 interface SettingsPanelProps {

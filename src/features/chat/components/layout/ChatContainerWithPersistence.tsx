@@ -1,16 +1,16 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { Message, MemoryContext, ChatSettings } from '../types';
-import { DBMessage } from '../types/database';
-import { useThreads } from '../hooks/useThreads';
-import { useThread } from '../hooks/useThread';
-import MessageBubble from './MessageBubble';
-import ChatInput from './ChatInput';
-import MemoryDisplay from './MemoryDisplay';
-import ModelSelector from './ModelSelector';
-import SettingsPanel from './SettingsPanel';
-import ThreadSidebar from './ThreadSidebar';
+import { Message, MemoryContext, ChatSettings } from '../../types';
+import { DBMessage } from '../../types/database';
+import { useThreads } from '../../hooks/useThreads';
+import { useThread } from '../../hooks/useThread';
+import MessageBubble from '../messages/MessageBubble';
+import ChatInput from '../messages/ChatInput';
+import MemoryDisplay from '../messages/MemoryDisplay';
+import ModelSelector from '../controls/ModelSelector';
+import SettingsPanel from '../controls/SettingsPanel';
+import ThreadSidebar from '../sidebar/ThreadSidebar';
 
 interface ChatContainerWithPersistenceProps {
   initialThreadId: string | null;

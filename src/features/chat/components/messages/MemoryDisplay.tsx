@@ -1,6 +1,6 @@
 'use client';
 
-import { MemoryContext } from '../types';
+import { MemoryContext } from '../../types';
 import { useState } from 'react';
 
 interface MemoryDisplayProps {

@@ -1,12 +1,12 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { Message, MemoryContext, ChatSettings } from '../types';
-import MessageBubble from './MessageBubble';
-import ChatInput from './ChatInput';
-import MemoryDisplay from './MemoryDisplay';
-import ModelSelector from './ModelSelector';
-import SettingsPanel from './SettingsPanel';
+import { Message, MemoryContext, ChatSettings } from '../../types';
+import MessageBubble from '../messages/MessageBubble';
+import ChatInput from '../messages/ChatInput';
+import MemoryDisplay from '../messages/MemoryDisplay';
+import ModelSelector from '../controls/ModelSelector';
+import SettingsPanel from '../controls/SettingsPanel';
 
 export default function ChatContainer() {
   const [messages, setMessages] = useState<Message[]>([]);

@@ -1,6 +1,6 @@
 'use client';
 
-import { DBThread } from '../types/database';
+import { DBThread } from '../../types/database';
 import { useState } from 'react';
 
 interface ThreadSidebarProps {

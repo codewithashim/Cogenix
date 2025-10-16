@@ -1,6 +1,6 @@
 'use client';
 
-import { Model } from '../types';
+import { Model } from '../../types';
 import { useEffect, useState } from 'react';
 
 interface ModelSelectorProps {
