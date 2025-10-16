@@ -49,10 +49,11 @@ export default function ChatContainerWithPersistence({ initialThreadId }: ChatCo
     const handlePopState = () => {
       const path = window.location.pathname;
       if (path === '/') {
-        setCurrentThreadId(null);
         setMessages([]);
         setMemoryContexts([]);
         setTokenStats(undefined);
+        previousThreadIdRef.current = null;
+        setCurrentThreadId(null);
       } else if (path.startsWith('/chat/')) {
         const threadId = path.split('/chat/')[1];
         if (threadId && threadId !== currentThreadId) {
@@ -69,6 +70,16 @@ export default function ChatContainerWithPersistence({ initialThreadId }: ChatCo
   useEffect(() => {
     const threadIdChanged = previousThreadIdRef.current !== currentThreadId;
     
+    // If no thread ID, clear messages (New Chat scenario)
+    if (currentThreadId === null) {
+      if (messages.length > 0) {
+        setMessages([]);
+      }
+      previousThreadIdRef.current = currentThreadId;
+      return;
+    }
+    
+    // If we have a thread with messages
     if (thread && thread.messages) {
       // Only load messages from DB if:
       // 1. Thread ID changed AND we're not currently loading (switching threads, not creating)
@@ -87,11 +98,6 @@ export default function ChatContainerWithPersistence({ initialThreadId }: ChatCo
         setMessages(loadedMessages);
       }
       setSelectedModel(thread.model || 'llama2');
-    } else if (!thread && currentThreadId === null) {
-      // Only clear messages if we're intentionally going to a new chat (no thread)
-      if (threadIdChanged && !isLoading) {
-        setMessages([]);
-      }
     }
     
     // Update the previous thread ID
@@ -309,9 +315,12 @@ export default function ChatContainerWithPersistence({ initialThreadId }: ChatCo
   };
 
   const handleNewChat = async () => {
+    // Clear everything first
     setMessages([]);
     setMemoryContexts([]);
     setTokenStats(undefined);
+    // Update the ref to track that we're intentionally clearing
+    previousThreadIdRef.current = null;
     setCurrentThreadId(null);
     // Update URL without reload
     window.history.pushState(null, '', '/');
@@ -331,6 +340,7 @@ export default function ChatContainerWithPersistence({ initialThreadId }: ChatCo
       setMessages([]);
       setMemoryContexts([]);
       setTokenStats(undefined);
+      previousThreadIdRef.current = null;
       setCurrentThreadId(null);
       // Update URL without reload
       window.history.pushState(null, '', '/');
