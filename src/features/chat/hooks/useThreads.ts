@@ -1,82 +1,25 @@
 /**
  * Hook for managing chat threads
+ * Updated to use the centralized thread service
  */
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { DBThread } from '../types/database';
-
-// Fetch threads function
-async function fetchThreadsApi(): Promise<DBThread[]> {
-  const response = await fetch('/api/threads');
-  const data = await response.json();
-  
-  if (!data.success) {
-    throw new Error(data.error || 'Failed to fetch threads');
-  }
-  
-  return data.threads;
-}
-
-// Create thread function
-async function createThreadApi(title?: string, model?: string): Promise<DBThread> {
-  const response = await fetch('/api/threads', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ title, model }),
-  });
-
-  const data = await response.json();
-
-  if (!data.success) {
-    throw new Error(data.error || 'Failed to create thread');
-  }
-
-  return data.thread;
-}
-
-// Delete thread function
-async function deleteThreadApi(threadId: string): Promise<void> {
-  const response = await fetch(`/api/threads/${threadId}`, {
-    method: 'DELETE',
-  });
-
-  const data = await response.json();
-
-  if (!data.success) {
-    throw new Error(data.error || 'Failed to delete thread');
-  }
-}
-
-// Update thread function
-async function updateThreadApi(threadId: string, updates: Partial<DBThread>): Promise<DBThread> {
-  const response = await fetch(`/api/threads/${threadId}`, {
-    method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(updates),
-  });
-
-  const data = await response.json();
-
-  if (!data.success) {
-    throw new Error(data.error || 'Failed to update thread');
-  }
-
-  return data.thread;
-}
+import { getAllThreads, createThread as createThreadService, updateThread as updateThreadService, deleteThread as deleteThreadService } from '../services';
 
 export function useThreads() {
   const queryClient = useQueryClient();
 
-  // Fetch all threads with React Query
+  // Fetch all threads with React Query - now using thread service functions
   const { data: threads = [], isLoading: loading, error } = useQuery({
     queryKey: ['threads'],
-    queryFn: fetchThreadsApi,
+    queryFn: () => getAllThreads() as unknown as Promise<DBThread[]>,
   });
 
-  // Create thread mutation
+  // Create thread mutation - now using thread service function
   const createThreadMutation = useMutation({
     mutationFn: ({ title, model }: { title?: string; model?: string }) => 
-      createThreadApi(title, model),
+      createThreadService({ title, firstMessage: model }) as unknown as Promise<DBThread>,
     onSuccess: (newThread) => {
       // Add new thread to cache
       queryClient.setQueryData<DBThread[]>(['threads'], (old = []) => [newThread, ...old]);
@@ -93,9 +36,9 @@ export function useThreads() {
     }
   };
 
-  // Delete thread mutation
+  // Delete thread mutation - now using thread service function
   const deleteThreadMutation = useMutation({
-    mutationFn: deleteThreadApi,
+    mutationFn: (threadId: string) => deleteThreadService(threadId),
     onSuccess: (_, threadId) => {
       // Remove thread from cache
       queryClient.setQueryData<DBThread[]>(['threads'], (old = []) => 
@@ -114,10 +57,10 @@ export function useThreads() {
     }
   };
 
-  // Update thread mutation
+  // Update thread mutation - now using thread service function
   const updateThreadMutation = useMutation({
     mutationFn: ({ threadId, updates }: { threadId: string; updates: Partial<DBThread> }) =>
-      updateThreadApi(threadId, updates),
+      updateThreadService(threadId, updates) as unknown as Promise<DBThread>,
     onSuccess: (updatedThread) => {
       // Update thread in cache
       queryClient.setQueryData<DBThread[]>(['threads'], (old = []) =>
