@@ -53,7 +53,7 @@ export function useChatActions({
       }
       threadId = newThread._id!;
       setCurrentThreadId(threadId);
-      updateUrlForThread(threadId);
+      updateUrlForThread(threadId as string);
     }
 
     const userMessage: Message = {
