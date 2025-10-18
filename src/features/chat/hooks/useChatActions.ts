@@ -1,48 +1,69 @@
-'use client';
+import { useRef } from 'react';
+import { Message, MemoryContext, ChatSettings } from '../types';
+import { DBMessage } from '../types/database';
 
-import { useState, useRef, useEffect } from 'react';
-import { Message, MemoryContext, ChatSettings } from '../../types';
-import MessageBubble from '../messages/MessageBubble';
-import ChatInput from '../messages/ChatInput';
-import MemoryDisplay from '../messages/MemoryDisplay';
-import ModelSelector from '../controls/ModelSelector';
-import { useThemeSync } from '../../hooks/useThemeSync';
+interface UseChatActionsProps {
+  currentThreadId: string | null;
+  selectedModel: string;
+  settings: ChatSettings;
+  messages: Message[];
+  setMessages: React.Dispatch<React.SetStateAction<Message[]>>;
+  setMemoryContexts: React.Dispatch<React.SetStateAction<MemoryContext[]>>;
+  setIsLoading: React.Dispatch<React.SetStateAction<boolean>>;
+  isLoading: boolean;
+  setCurrentThreadId: (id: string | null) => void;
+  updateUrlForThread: (id: string) => void;
+  createThread: (title: string, model: string) => Promise<any>;
+  addMessagesToThread: (threadId: string, messages: DBMessage[]) => Promise<any>;
+}
 
-export default function ChatContainer() {
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [selectedModel, setSelectedModel] = useState('llama3');
-  const [memoryContexts, setMemoryContexts] = useState<MemoryContext[]>([]);
-  const [settings, setSettings] = useState<ChatSettings>({
-    theme: 'system',
-    streaming: true,
-    showTokenCount: false,
-  });
-  const [tokenStats, setTokenStats] = useState<{ prompt: number; completion: number; total: number }>();
-  
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+export function useChatActions({
+  currentThreadId,
+  selectedModel,
+  settings,
+  messages,
+  setMessages,
+  setMemoryContexts,
+  setIsLoading,
+  isLoading,
+  setCurrentThreadId,
+  updateUrlForThread,
+  createThread,
+  addMessagesToThread,
+}: UseChatActionsProps) {
   const abortControllerRef = useRef<AbortController | null>(null);
-
-  // Sync theme from context
-  useThemeSync(settings, setSettings);
-
-  // Scroll to bottom when messages change
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
 
   const handleSendMessage = async (content: string) => {
     if (!content.trim() || isLoading) return;
 
+    // Capture content for later use in the finally block
+    const userContent = content;
+
+    // Set loading state FIRST to prevent useEffect from overwriting messages
+    setIsLoading(true);
+
+    // Create thread if doesn't exist
+    let threadId = currentThreadId;
+    if (!threadId) {
+      const newThread = await createThread(userContent.substring(0, 50), selectedModel);
+      if (!newThread) {
+        console.error('Failed to create thread');
+        setIsLoading(false);
+        return;
+      }
+      threadId = newThread._id!;
+      setCurrentThreadId(threadId);
+      updateUrlForThread(threadId);
+    }
+
     const userMessage: Message = {
       id: Date.now().toString(),
       role: 'user',
-      content,
+      content: userContent,
       timestamp: new Date(),
     };
 
     setMessages((prev) => [...prev, userMessage]);
-    setIsLoading(true);
 
     // Create assistant message placeholder
     const assistantMessageId = (Date.now() + 1).toString();
@@ -55,6 +76,8 @@ export default function ChatContainer() {
     };
 
     setMessages((prev) => [...prev, assistantMessage]);
+
+    let assistantContent = '';
 
     try {
       abortControllerRef.current = new AbortController();
@@ -82,7 +105,6 @@ export default function ChatContainer() {
       if (settings.streaming && response.body) {
         const reader = response.body.getReader();
         const decoder = new TextDecoder();
-        let accumulatedContent = '';
 
         while (true) {
           const { done, value } = await reader.read();
@@ -102,12 +124,12 @@ export default function ChatContainer() {
               const parsed = JSON.parse(data);
               
               if (parsed.content) {
-                accumulatedContent += parsed.content;
+                assistantContent += parsed.content;
                 
                 setMessages((prev) =>
                   prev.map((m) =>
                     m.id === assistantMessageId
-                      ? { ...m, content: accumulatedContent }
+                      ? { ...m, content: assistantContent }
                       : m
                   )
                 );
@@ -123,11 +145,12 @@ export default function ChatContainer() {
         }
       } else {
         const data = await response.json();
+        assistantContent = data.content;
         
         setMessages((prev) =>
           prev.map((m) =>
             m.id === assistantMessageId
-              ? { ...m, content: data.content, isStreaming: false }
+              ? { ...m, content: assistantContent, isStreaming: false }
               : m
           )
         );
@@ -145,6 +168,7 @@ export default function ChatContainer() {
             : m
         )
       );
+
     } catch (error) {
       if (error instanceof Error && error.name === 'AbortError') {
         console.log('Request was aborted by user');
@@ -173,23 +197,33 @@ export default function ChatContainer() {
     } finally {
       setIsLoading(false);
       abortControllerRef.current = null;
+      
+      // Save messages to database after everything completes (including abort)
+      if (threadId && assistantContent) {
+        try {
+          const dbMessages: DBMessage[] = [
+            {
+              role: 'user',
+              content: userContent,
+              timestamp: userMessage.timestamp,
+            },
+            {
+              role: 'assistant',
+              content: assistantContent,
+              timestamp: new Date(),
+            },
+          ];
+
+          // Use the hook's addMessages function to update thread state
+          const result = await addMessagesToThread(threadId, dbMessages);
+          if (result) {
+            console.log('Messages saved successfully to thread:', threadId);
+          }
+        } catch (saveError) {
+          console.error('Error saving messages to thread:', saveError);
+        }
+      }
     }
-  };
-
-  const handleRegenerateLastMessage = () => {
-    if (messages.length < 2) return;
-
-    // Find the last user message
-    const lastUserMessageIndex = messages.findLastIndex((m) => m.role === 'user');
-    if (lastUserMessageIndex === -1) return;
-
-    const lastUserMessage = messages[lastUserMessageIndex];
-    
-    // Remove messages after the last user message
-    setMessages((prev) => prev.slice(0, lastUserMessageIndex + 1));
-    
-    // Resend the last user message
-    setTimeout(() => handleSendMessage(lastUserMessage.content), 100);
   };
 
   const handleRegenerateMessage = (messageId: string) => {
@@ -214,12 +248,6 @@ export default function ChatContainer() {
     
     // Resend the user message
     setTimeout(() => handleSendMessage(userMessage.content), 100);
-  };
-
-  const handleNewChat = () => {
-    setMessages([]);
-    setMemoryContexts([]);
-    setTokenStats(undefined);
   };
 
   const handleStopGeneration = () => {
@@ -250,78 +278,10 @@ export default function ChatContainer() {
     }
   };
 
-  return (
-    <div className="flex flex-col h-screen bg-gray-50 dark:bg-gray-900">
-      {/* Header */}
-      <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-6 py-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-              Cognix Chat
-            </h1>
-            <ModelSelector
-              selectedModel={selectedModel}
-              onModelChange={setSelectedModel}
-            />
-          </div>
-          
-          <div className="flex items-center gap-2">
-            <button
-              onClick={handleNewChat}
-              className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors cursor-pointer"
-            >
-              ✨ New Chat
-            </button>
-            
-          </div>
-        </div>
-      </div>
-
-      {/* Messages Container */}
-      <div className="flex-1 overflow-y-auto px-6 py-4">
-        <div className="max-w-4xl mx-auto">
-          {memoryContexts.length > 0 && (
-            <MemoryDisplay
-              contexts={memoryContexts}
-              onClearMemory={handleClearMemory}
-            />
-          )}
-          
-          {messages.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-full text-center">
-              <div className="text-6xl mb-4">🤖</div>
-              <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mb-2">
-                Welcome to Cognix
-              </h2>
-              <p className="text-gray-600 dark:text-gray-400 max-w-md">
-                Start a conversation with your AI assistant. Ask questions, get insights, 
-                and explore ideas with the power of local language models.
-              </p>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {messages.map((message) => (
-                <MessageBubble 
-                  key={message.id} 
-                  message={message} 
-                  onRegenerate={message.role === 'assistant' ? () => handleRegenerateMessage(message.id) : undefined}
-                  isRegenerating={isLoading}
-                />
-              ))}
-              <div ref={messagesEndRef} />
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Input Area */}
-      <ChatInput
-        onSendMessage={handleSendMessage}
-        onStop={handleStopGeneration}
-        disabled={isLoading}
-        placeholder={isLoading ? 'Waiting for response...' : 'Type your message...'}
-      />
-    </div>
-  );
+  return {
+    handleSendMessage,
+    handleRegenerateMessage,
+    handleStopGeneration,
+    handleClearMemory,
+  };
 }
-
