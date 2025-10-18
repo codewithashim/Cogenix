@@ -55,7 +55,7 @@ export default function ChatInput({
   return (
     <div className="relative w-full">
       {/* Main input container with pill shape and blue border */}
-      <div className="flex items-center gap-4 px-6 py-4 bg-[#363636] dark:bg-[#363636] rounded-4xl transition-all duration-300">
+      <div className="flex items-center gap-4 px-6 py-4 bg-gray-100 dark:bg-[#363636] rounded-4xl transition-all duration-300">
         <textarea
           ref={textareaRef}
           value={input}
@@ -63,7 +63,7 @@ export default function ChatInput({
           onKeyDown={handleKeyDown}
           placeholder={placeholder}
           disabled={disabled}
-          className="flex-1 resize-none bg-transparent text-white placeholder-gray-400 
+          className="flex-1 resize-none bg-transparent text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 
              focus:outline-none focus:ring-0 focus-visible:ring-0 
              disabled:opacity-50 max-h-[200px] min-h-[24px] text-base leading-relaxed "
           rows={1}
@@ -96,7 +96,7 @@ export default function ChatInput({
                 }
               }}
               disabled={disabled}
-              className="w-10 h-10 rounded-full bg-[#404040] hover:bg-[#4A4A4A] text-gray-300 hover:text-white transition-all duration-200 flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+              className="w-10 h-10 rounded-full bg-gray-200 hover:bg-gray-300 dark:bg-[#404040] dark:hover:bg-[#4A4A4A] text-gray-700 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white transition-all duration-200 flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
               aria-label={onVoiceInput ? "Voice input" : "Send message"}
               type="button"
             >
@@ -123,7 +123,7 @@ export default function ChatInput({
       </div>
 
       {/* Helper text */}
-      <p className="text-xs text-gray-400 dark:text-gray-400 text-center mt-3 opacity-75">
+      <p className="text-xs text-gray-500 dark:text-gray-400 text-center mt-3 opacity-75">
         {disabled && onStop
           ? 'Click the stop button to abort the response'
           : 'Press Enter to send, Shift + Enter for new line'}
