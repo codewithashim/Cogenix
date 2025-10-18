@@ -1,6 +1,7 @@
 'use client';
 
 import { Message } from '../../types';
+import { formatMarkdownForChat, containsMarkdown } from '@/lib';
 
 interface MessageBubbleProps {
   message: Message;
@@ -8,6 +9,11 @@ interface MessageBubbleProps {
 
 export default function MessageBubble({ message }: MessageBubbleProps) {
   const isUser = message.role === 'user';
+  
+  // Format message content based on whether it contains markdown
+  const formattedContent = isUser 
+    ? message.content 
+    : (containsMarkdown(message.content) ? formatMarkdownForChat(message.content) : message.content);
 
   return (
     <div className={`group flex gap-4 ${isUser ? 'flex-row-reverse' : 'flex-row'}`}>
@@ -49,19 +55,28 @@ export default function MessageBubble({ message }: MessageBubbleProps) {
             ? 'text-gray-900 dark:text-gray-100' 
             : 'text-gray-800 dark:text-gray-200'
         }`}>
-          <p className="whitespace-pre-wrap break-words leading-relaxed m-0">
-            {message.content}
-            {message.isStreaming && (
-              <span className="inline-block w-1 h-4 ml-1 bg-gray-900 dark:bg-gray-100 animate-pulse rounded-sm" />
-            )}
-          </p>
+          {isUser || !containsMarkdown(message.content) ? (
+            <p className="whitespace-pre-wrap break-words leading-relaxed m-0">
+              {message.content}
+              {message.isStreaming && (
+                <span className="inline-block w-1 h-4 ml-1 bg-gray-900 dark:bg-gray-100 animate-pulse rounded-sm" />
+              )}
+            </p>
+          ) : (
+            <div className="break-words leading-relaxed">
+              <div dangerouslySetInnerHTML={{ __html: formattedContent }} />
+              {message.isStreaming && (
+                <span className="inline-block w-1 h-4 ml-1 bg-gray-900 dark:bg-gray-100 animate-pulse rounded-sm" />
+              )}
+            </div>
+          )}
         </div>
 
         {/* Action Buttons - Only show on hover and for assistant messages */}
         {!isUser && !message.isStreaming && (
           <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
             <button
-              className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+              className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors cursor-pointer"
               title="Copy message"
               onClick={() => {
                 navigator.clipboard.writeText(message.content);
@@ -72,7 +87,7 @@ export default function MessageBubble({ message }: MessageBubbleProps) {
               </svg>
             </button>
             <button
-              className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+              className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors cursor-pointer"
               title="Like"
             >
               <svg className="w-4 h-4 text-gray-500 dark:text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -80,7 +95,7 @@ export default function MessageBubble({ message }: MessageBubbleProps) {
               </svg>
             </button>
             <button
-              className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+              className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors cursor-pointer"
               title="Dislike"
             >
               <svg className="w-4 h-4 text-gray-500 dark:text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">

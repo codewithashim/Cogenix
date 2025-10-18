@@ -11,3 +11,9 @@ export {
   ApiError,
 } from './axios';
 
+export {
+  parseMarkdown,
+  formatMarkdownForChat,
+  containsMarkdown,
+} from './markdown';
+

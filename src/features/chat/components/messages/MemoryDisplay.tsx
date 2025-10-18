@@ -18,7 +18,7 @@ export default function MemoryDisplay({ contexts, onClearMemory }: MemoryDisplay
       <div className="flex items-center justify-between mb-2">
         <button
           onClick={() => setIsExpanded(!isExpanded)}
-          className="flex items-center gap-2 text-sm font-semibold text-purple-700 dark:text-purple-300 hover:text-purple-800 dark:hover:text-purple-200 transition-colors"
+          className="flex items-center gap-2 text-sm font-semibold text-purple-700 dark:text-purple-300 hover:text-purple-800 dark:hover:text-purple-200 transition-colors cursor-pointer"
         >
           <div className="w-6 h-6 rounded-lg bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center">
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -32,7 +32,7 @@ export default function MemoryDisplay({ contexts, onClearMemory }: MemoryDisplay
         </button>
         <button
           onClick={onClearMemory}
-          className="text-xs font-medium text-purple-600 dark:text-purple-400 hover:text-purple-800 dark:hover:text-purple-200 px-3 py-1.5 rounded-lg hover:bg-purple-100 dark:hover:bg-purple-900/30 transition-all"
+          className="text-xs font-medium text-purple-600 dark:text-purple-400 hover:text-purple-800 dark:hover:text-purple-200 px-3 py-1.5 rounded-lg hover:bg-purple-100 dark:hover:bg-purple-900/30 transition-all cursor-pointer"
         >
           Clear
         </button>
